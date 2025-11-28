@@ -8,6 +8,9 @@ from akari.execution.executor import TaskExecutor
 from akari.execution.runtime_registry import RuntimeRegistry
 from akari.execution.runtimes.callable_runtime import CallableRuntime
 from akari.execution.runtimes.sklearn_runtime import SklearnRuntime
+from akari.memory.api import MemorySubsystem
+from akari.memory.symbolic_store import SymbolicMemoryStore
+from akari.memory.vector_store import SimpleEmbeddingFunction, VectorMemoryStore
 from akari.registry.registry import IdentityRegistry
 
 
@@ -30,7 +33,7 @@ class Kernel:
     logger: Optional[Any] = field(default=None, repr=False)
     message_bus: Optional[Any] = field(default=None, repr=False)
     tool_manager: Optional[Any] = field(default=None, repr=False)
-    
+
     def __post_init__(self) -> None:
         """
         Initialise default subsystems where appropriate.
@@ -46,14 +49,26 @@ class Kernel:
 
         # Runtime registry + runtimes
         runtime_registry = RuntimeRegistry()
-        runtime_registry.register("callable", CallableRuntime())
-        runtime_registry.register("sklearn", SklearnRuntime())
+        runtime_registry.register('callable', CallableRuntime())
+        runtime_registry.register('sklearn', SklearnRuntime())
 
         # Executor
         if self.executor is None:
             self.executor = TaskExecutor(
                 registry=self.registry,
                 runtime_registry=runtime_registry,
+            )
+
+        # Memory subsystem (symbolic + vector) without policy for now.
+        if self.memory is None:
+            symbolic_store = SymbolicMemoryStore()
+            embedding_fn = SimpleEmbeddingFunction()
+            vector_store = VectorMemoryStore(embedding_fn=embedding_fn)
+            self.memory = MemorySubsystem(
+                symbolic_store=symbolic_store,
+                vector_store=vector_store,
+                policy_engine=None,
+                logger=None,
             )
 
     # ---- Accessors -----------------------------------------------------
@@ -101,11 +116,11 @@ class Kernel:
 
         def _describe(name: SubsystemName, value: Any) -> Dict[str, str]:
             is_present = value is not None
-            type_name = type(value).__name__ if is_present else "None"
+            type_name = type(value).__name__ if is_present else 'None'
             return {
-                "name": name.value,
-                "present": "yes" if is_present else "no",
-                "type": type_name,
+                'name': name.value,
+                'present': 'yes' if is_present else 'no',
+                'type': type_name,
             }
 
         return {
@@ -118,12 +133,8 @@ class Kernel:
             SubsystemName.POLICY_ENGINE.value: _describe(
                 SubsystemName.POLICY_ENGINE, self.policy_engine
             ),
-            SubsystemName.MEMORY.value: _describe(
-                SubsystemName.MEMORY, self.memory
-            ),
-            SubsystemName.LOGGER.value: _describe(
-                SubsystemName.LOGGER, self.logger
-            ),
+            SubsystemName.MEMORY.value: _describe(SubsystemName.MEMORY, self.memory),
+            SubsystemName.LOGGER.value: _describe(SubsystemName.LOGGER, self.logger),
             SubsystemName.MESSAGE_BUS.value: _describe(
                 SubsystemName.MESSAGE_BUS, self.message_bus
             ),
@@ -141,6 +152,6 @@ class Kernel:
         implemented once the execution subsystem exists.
         """
         raise NotImplementedError(
-            "Task submission is not implemented yet. "
-            "This will be provided in v0.3.0 Task & Execution."
+            'Task submission is not implemented yet. '
+            'This will be provided in v0.3.0 Task & Execution.'
         )
