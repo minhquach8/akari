@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
+from akari.observability.logging import LogEvent, LogStore
+
 from .models import PolicyDecision, PolicyEffect, PolicyRule, PolicySet
 
 
@@ -16,8 +18,14 @@ class PolicyEngine:
     - If a matching rule's conditions fail, that rule is skipped.
     """
 
-    def __init__(self, policy_set: Optional[PolicySet] = None) -> None:
-        self._policy_set = policy_set or PolicySet(name='default')
+    def __init__(
+        self,
+        policy_set: Optional[PolicySet] = None,
+        log_store: LogStore | None = None,
+    ) -> None:
+        self._policy_set = policy_set or PolicySet(name="default")
+        self._log_store = log_store
+
 
     @property
     def policy_set(self) -> PolicySet:
@@ -34,6 +42,14 @@ class PolicyEngine:
         context = context or {}
         ps = self._policy_set
 
+        self._log_event(
+            event_type="policy.checked",
+            subject=subject,
+            action=action,
+            resource=resource,
+            context=context,
+        )
+
         for rule in ps.rules:
             if not self._subject_matches(rule.subject_match, subject):
                 continue
@@ -48,6 +64,14 @@ class PolicyEngine:
 
             # First matching rule wins.
             if rule.effect is PolicyEffect.ALLOW:
+                self._log_event(
+                    event_type="policy.allowed",
+                    subject=subject,
+                    action=action,
+                    resource=resource,
+                    context=context,
+                    rule_id=rule.id,
+                )
                 return PolicyDecision(
                     allowed=True,
                     reason=f'Allowed by rule {rule.id}',
@@ -55,6 +79,14 @@ class PolicyEngine:
                     policy_version=ps.version,
                 )
             else:
+                self._log_event(
+                    event_type="policy.denied",
+                    subject=subject,
+                    action=action,
+                    resource=resource,
+                    context=context,
+                    rule_id=rule.id,
+                )
                 return PolicyDecision(
                     allowed=False,
                     reason=f'Denied by rule {rule.id}',
@@ -62,6 +94,14 @@ class PolicyEngine:
                     policy_version=ps.version,
                 )
 
+        self._log_event(
+            event_type="policy.denied",
+            subject=subject,
+            action=action,
+            resource=resource,
+            context=context,
+            rule_id=None,
+        )
         # Fail-closed: no rule matched.
         return PolicyDecision(
             allowed=False,
@@ -88,10 +128,10 @@ class PolicyEngine:
         - "prefix*"     : match any resource starting with "prefix".
         - exact string  : match exactly.
         """
-        if pattern == "*":
+        if pattern == '*':
             return True
 
-        if pattern.endswith("*"):
+        if pattern.endswith('*'):
             prefix = pattern[:-1]
             return resource.startswith(prefix)
 
@@ -104,3 +144,31 @@ class PolicyEngine:
             if not cond.predicate(context):
                 return False
         return True
+
+    def _log_event(
+        self,
+        event_type: str,
+        subject: str,
+        action: str,
+        resource: str,
+        context: Dict[str, Any],
+        rule_id: Optional[str] = None,
+    ) -> None:
+        if self._log_store is None:
+            return
+        payload = {
+            "action": action,
+            "resource": resource,
+            "context": context,
+        }
+        if rule_id is not None:
+            payload["rule_id"] = rule_id
+        event = LogEvent.new(
+            event_type=event_type,
+            payload=payload,
+            subject=subject,
+            workspace=context.get("workspace"),
+            spec_id=context.get("spec_id"),
+            task_id=context.get("task_id"),
+        )
+        self._log_store.append(event)

@@ -11,6 +11,8 @@ from akari.execution.runtimes.sklearn_runtime import SklearnRuntime
 from akari.memory.api import MemorySubsystem
 from akari.memory.symbolic_store import SymbolicMemoryStore
 from akari.memory.vector_store import SimpleEmbeddingFunction, VectorMemoryStore
+from akari.observability.logging import InMemoryLogStore, LogStore
+from akari.observability.run_tracking import InMemoryRunStore, RunStore
 from akari.registry.registry import IdentityRegistry
 
 
@@ -30,9 +32,10 @@ class Kernel:
     executor: Optional[Any] = field(default=None, repr=False)
     policy_engine: Optional[Any] = field(default=None, repr=False)
     memory: Optional[Any] = field(default=None, repr=False)
-    logger: Optional[Any] = field(default=None, repr=False)
+    logger: Optional[LogStore] = field(default=None, repr=False)
     message_bus: Optional[Any] = field(default=None, repr=False)
     tool_manager: Optional[Any] = field(default=None, repr=False)
+    run_store: Optional[RunStore] = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         """
@@ -52,14 +55,20 @@ class Kernel:
         runtime_registry.register('callable', CallableRuntime())
         runtime_registry.register('sklearn', SklearnRuntime())
 
+        # Logger/log_store
+        if self.logger is None:
+            self.logger = InMemoryLogStore()
+
         # Executor
         if self.executor is None:
             self.executor = TaskExecutor(
                 registry=self.registry,
                 runtime_registry=runtime_registry,
+                policy_engine=self.policy_engine,
+                log_store=self.logger,
             )
 
-        # Memory subsystem (symbolic + vector) without policy for now.
+        # Memory subsystem
         if self.memory is None:
             symbolic_store = SymbolicMemoryStore()
             embedding_fn = SimpleEmbeddingFunction()
@@ -67,9 +76,20 @@ class Kernel:
             self.memory = MemorySubsystem(
                 symbolic_store=symbolic_store,
                 vector_store=vector_store,
-                policy_engine=None,
-                logger=None,
+                policy_engine=self.policy_engine,
+                logger=self.logger,
             )
+
+        # Run store
+        if self.run_store is None:
+            self.run_store = InMemoryRunStore()
+
+        # Observability: logger (log_store) and run_store.
+        if self.logger is None:
+            self.logger = InMemoryLogStore()
+
+        if self.run_store is None:
+            self.run_store = InMemoryRunStore()
 
     # ---- Accessors -----------------------------------------------------
 
@@ -100,6 +120,12 @@ class Kernel:
     def get_tool_manager(self) -> Optional[Any]:
         """Return the tool manager subsystem, if configured."""
         return self.tool_manager
+
+    def get_logger(self) -> Optional[LogStore]:
+        return self.logger
+
+    def get_run_store(self) -> Optional[RunStore]:
+        return self.run_store
 
     # ---- Introspection -------------------------------------------------
 

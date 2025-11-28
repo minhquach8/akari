@@ -14,10 +14,11 @@ Those will be hooked in later via additional layers.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from akari.execution.runtime_registry import RuntimeRegistry
 from akari.execution.task import Task, TaskResult, TaskStatus
+from akari.observability.logging import LogEvent, LogStore
 from akari.policy.engine import PolicyEngine
 from akari.policy.models import PolicyDecision
 from akari.registry.registry import IdentityRegistry
@@ -32,10 +33,12 @@ class TaskExecutor:
         registry: IdentityRegistry,
         runtime_registry: RuntimeRegistry,
         policy_engine: PolicyEngine | None = None,
+        log_store: LogStore | None = None,
     ) -> None:
         self._registry = registry
         self._runtime_registry = runtime_registry
         self._policy_engine = policy_engine
+        self._log_store = log_store
 
     # ---- Policy hook ----------------------------------------------------
 
@@ -82,8 +85,27 @@ class TaskExecutor:
         """
         started_at = datetime.now(timezone.utc)
 
+        # Log task.created
+        self._log_event(
+            event_type='task.created',
+            subject=task.subject,
+            workspace=task.workspace,
+            task_id=task.id,
+            spec_id=None,
+            payload={'target_id': task.target_id},
+        )
+
         # 1) Mark running.
         task.mark_running()
+
+        self._log_event(
+            event_type='task.started',
+            subject=task.subject,
+            workspace=task.workspace,
+            task_id=task.id,
+            spec_id=None,
+            payload={'target_id': task.target_id},
+        )
 
         # 2) Resolve spec.
         spec = self._resolve_spec(task.target_id)
@@ -91,6 +113,16 @@ class TaskExecutor:
             error_msg = f"Spec not found for target_id='{task.target_id}'"
             task.mark_failed(error_msg)
             finished_at = datetime.now(timezone.utc)
+
+            self._log_event(
+                event_type='task.failed',
+                subject=task.subject,
+                workspace=task.workspace,
+                task_id=task.id,
+                spec_id=None,
+                payload={'reason': error_msg},
+            )
+
             return TaskResult(
                 task_id=task.id,
                 status=TaskStatus.FAILED,
@@ -122,9 +154,22 @@ class TaskExecutor:
         )
 
         if decision is not None and not decision.allowed:
-            error_msg = f'Policy denied: {decision.reason}'
+            error_msg = f"Policy denied: {decision.reason}"
             task.mark_failed(error_msg)
             finished_at = datetime.now(timezone.utc)
+
+            self._log_event(
+                event_type="task.failed",
+                subject=task.subject,
+                workspace=task.workspace,
+                task_id=task.id,
+                spec_id=spec.id,
+                payload={
+                    "reason": error_msg,
+                    "policy_rule_id": decision.rule_id,
+                },
+            )
+
             return TaskResult(
                 task_id=task.id,
                 status=TaskStatus.FAILED,
@@ -151,6 +196,16 @@ class TaskExecutor:
             error_msg = str(exc)
             task.mark_failed(error_msg)
             finished_at = datetime.now(timezone.utc)
+
+            self._log_event(
+                event_type="task.failed",
+                subject=task.subject,
+                workspace=task.workspace,
+                task_id=task.id,
+                spec_id=spec.id,
+                payload={"reason": error_msg},
+            )
+            
             return TaskResult(
                 task_id=task.id,
                 status=TaskStatus.FAILED,
@@ -167,6 +222,15 @@ class TaskExecutor:
         # 6) Mark completed
         task.mark_completed()
         finished_at = datetime.now(timezone.utc)
+
+        self._log_event(
+            event_type="task.completed",
+            subject=task.subject,
+            workspace=task.workspace,
+            task_id=task.id,
+            spec_id=spec.id,
+            payload={},
+        )
 
         return TaskResult(
             task_id=task.id,
@@ -211,3 +275,24 @@ class TaskExecutor:
     def _resolve_spec(self, target_id: str) -> Optional[BaseSpec]:
         """Resolve a spec from the IdentityRegistry."""
         return self._registry.get(target_id)
+
+    def _log_event(
+        self,
+        event_type: str,
+        subject: str | None,
+        workspace: str | None,
+        task_id: str | None,
+        spec_id: str | None,
+        payload: Dict[str, Any],
+    ) -> None:
+        if self._log_store is None:
+            return
+        event = LogEvent.new(
+            event_type=event_type,
+            payload=payload,
+            subject=subject,
+            workspace=workspace,
+            task_id=task_id,
+            spec_id=spec_id,
+        )
+        self._log_store.append(event)
