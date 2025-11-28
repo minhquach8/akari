@@ -15,6 +15,8 @@ from akari.memory.vector_store import SimpleEmbeddingFunction, VectorMemoryStore
 from akari.observability.logging import InMemoryLogStore, LogStore
 from akari.observability.run_tracking import InMemoryRunStore, RunStore
 from akari.registry.registry import IdentityRegistry
+from akari.tools.manager import ToolManager
+from akari.tools.runtime import CallableToolRuntime, HttpToolRuntime
 
 
 @dataclass
@@ -84,10 +86,22 @@ class Kernel:
         # Run store
         if self.run_store is None:
             self.run_store = InMemoryRunStore()
-            
+
         # IPC: in-memory message bus.
         if self.message_bus is None:
             self.message_bus = InMemoryMessageBus()
+
+        # Tool subsystem: manager + runtimes.
+        if self.tool_manager is None:
+            tool_runtime_registry = {
+                'callable': CallableToolRuntime(),
+                'http': HttpToolRuntime(),
+            }
+            self.tool_manager = ToolManager(
+                registry=self.registry,
+                policy_engine=self.policy_engine,
+                runtime_registry=tool_runtime_registry,
+            )
 
         # Observability: logger (log_store) and run_store.
         if self.logger is None:
@@ -131,11 +145,14 @@ class Kernel:
 
     def get_run_store(self) -> Optional[RunStore]:
         return self.run_store
-    
+
     def get_message_bus(self) -> Any:
         """Return the Kernel's message bus."""
         return self.message_bus
 
+    def get_tool_manager(self) -> Any:
+        """Return the Kernel's tool manager."""
+        return self.tool_manager
 
     # ---- Introspection -------------------------------------------------
 
