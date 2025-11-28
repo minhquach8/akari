@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-from .types import SubsystemName
+from akari.core.types import SubsystemName
+from akari.registry.registry import IdentityRegistry
 
 
 @dataclass
@@ -25,6 +26,16 @@ class Kernel:
     logger: Optional[Any] = field(default=None, repr=False)
     message_bus: Optional[Any] = field(default=None, repr=False)
     tool_manager: Optional[Any] = field(default=None, repr=False)
+    
+    def __post_init__(self) -> None:
+        """
+        Initialise default subsystems where appropriate.
+        
+        At v0.2.3 we only attach an IdentityRegistry by default.
+        Other subsystems will be wired in future versions.
+        """
+        if self.registry is None:
+            self.registry = IdentityRegistry()
 
     # ---- Accessors -----------------------------------------------------
 
