@@ -30,7 +30,7 @@ def main() -> None:
     registry = kernel.get_registry()
     assert registry is not None
     
-    print("=== Use case 0.2.1 - Registry with callable tool ===\n")
+    print("=== Use case 0.2.2 - Registry with callable tool ===\n")
     
     # 1. Create a ToolSpec for our multiply() function
     multiply_spec = ToolSpec(
