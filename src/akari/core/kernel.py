@@ -8,6 +8,7 @@ from akari.execution.executor import TaskExecutor
 from akari.execution.runtime_registry import RuntimeRegistry
 from akari.execution.runtimes.callable_runtime import CallableRuntime
 from akari.execution.runtimes.sklearn_runtime import SklearnRuntime
+from akari.ipc.bus import InMemoryMessageBus
 from akari.memory.api import MemorySubsystem
 from akari.memory.symbolic_store import SymbolicMemoryStore
 from akari.memory.vector_store import SimpleEmbeddingFunction, VectorMemoryStore
@@ -83,6 +84,10 @@ class Kernel:
         # Run store
         if self.run_store is None:
             self.run_store = InMemoryRunStore()
+            
+        # IPC: in-memory message bus.
+        if self.message_bus is None:
+            self.message_bus = InMemoryMessageBus()
 
         # Observability: logger (log_store) and run_store.
         if self.logger is None:
@@ -126,6 +131,11 @@ class Kernel:
 
     def get_run_store(self) -> Optional[RunStore]:
         return self.run_store
+    
+    def get_message_bus(self) -> Any:
+        """Return the Kernel's message bus."""
+        return self.message_bus
+
 
     # ---- Introspection -------------------------------------------------
 
