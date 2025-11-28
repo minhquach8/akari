@@ -18,4 +18,4 @@ class CallableRuntime(ModelRuntime):
         try:
             return spec.binding(**task_input) if isinstance(task_input, dict) else spec.binding(task_input)
         except Exception as e:
-            raise RuntimeError("CallableRuntime failed: {e}") from e
+            raise RuntimeError(f"CallableRuntime failed: {e}") from e

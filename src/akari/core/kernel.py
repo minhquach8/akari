@@ -4,6 +4,10 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 from akari.core.types import SubsystemName
+from akari.execution.executor import TaskExecutor
+from akari.execution.runtime_registry import RuntimeRegistry
+from akari.execution.runtimes.callable_runtime import CallableRuntime
+from akari.execution.runtimes.sklearn_runtime import SklearnRuntime
 from akari.registry.registry import IdentityRegistry
 
 
@@ -30,12 +34,27 @@ class Kernel:
     def __post_init__(self) -> None:
         """
         Initialise default subsystems where appropriate.
-        
-        At v0.2.3 we only attach an IdentityRegistry by default.
-        Other subsystems will be wired in future versions.
+
+        At v0.3.0 we attach:
+        - IdentityRegistry (registry),
+        - RuntimeRegistry + basic runtimes,
+        - TaskExecutor wired to both.
         """
+        # Registry
         if self.registry is None:
             self.registry = IdentityRegistry()
+
+        # Runtime registry + runtimes
+        runtime_registry = RuntimeRegistry()
+        runtime_registry.register("callable", CallableRuntime())
+        runtime_registry.register("sklearn", SklearnRuntime())
+
+        # Executor
+        if self.executor is None:
+            self.executor = TaskExecutor(
+                registry=self.registry,
+                runtime_registry=runtime_registry,
+            )
 
     # ---- Accessors -----------------------------------------------------
 
