@@ -1,5 +1,3 @@
-Dưới đây là **README.md hoàn chỉnh – phiên bản chuẩn cho v1.0.0 của AKARI**, viết theo phong cách công nghiệp, rõ ràng, có cấu trúc, và thể hiện đầy đủ giá trị của dự án.
-
 # AKARI — AI Control-Plane Kernel (v1.0.0)
 
 **AKARI** is an experimental **AI control-plane kernel** designed to coordinate models, agents, tools, memory, and policies across heterogeneous ML frameworks (sklearn, PyTorch, HuggingFace, callable tools…).
