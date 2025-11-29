@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
+
 from akari import Kernel
 from akari.execution.task import Task
-from akari.observability.logging import InMemoryLogStore
+from akari.observability.logging import JsonLinesLogStore, LogStore
 from akari.registry.specs import ToolSpec
 
 
@@ -13,11 +15,18 @@ def add(a: int, b: int) -> int:
 
 
 def main() -> None:
-    kernel = Kernel()
+    # Use a JSONL log file under ./artifacts/task_logs
+    logs_dir = os.path.join("artifacts", "task_logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    log_path = os.path.join(logs_dir, "task_logs.jsonl")
+
+    # Create a Kernel wired to a persistent JsonLinesLogStore
+    persistent_logger: LogStore = JsonLinesLogStore(log_path)
+    kernel = Kernel(logger=persistent_logger)
+
     registry = kernel.get_registry()
     executor = kernel.get_executor()
     log_store = kernel.get_logger()
-    assert isinstance(log_store, InMemoryLogStore)
 
     tool = ToolSpec(
         id="tool:add",

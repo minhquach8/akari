@@ -1,0 +1,14 @@
+observability:
+  log_backend: jsonl
+  log_path: artifacts/config_demo/task_logs.jsonl
+  run_backend: json
+  run_dir: artifacts/config_demo/runs
+
+execution:
+  enable_runtimes:
+    - callable
+    - sklearn
+    - pytorch
+    - hf-llm
+
+policy_files: []

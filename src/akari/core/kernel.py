@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
+from akari.config import AkariConfig
 from akari.core.types import SubsystemName
 from akari.execution.executor import TaskExecutor
 from akari.execution.runtime_registry import RuntimeRegistry
 from akari.execution.runtimes.callable_runtime import CallableRuntime
+from akari.execution.runtimes.hf_llm_runtime import HuggingFaceLLMRuntime
+from akari.execution.runtimes.pytorch_runtime import PytorchRuntime
 from akari.execution.runtimes.sklearn_runtime import SklearnRuntime
 from akari.ipc.bus import InMemoryMessageBus
 from akari.memory.api import MemorySubsystem
 from akari.memory.symbolic_store import SymbolicMemoryStore
 from akari.memory.vector_store import SimpleEmbeddingFunction, VectorMemoryStore
-from akari.observability.logging import InMemoryLogStore, LogStore
-from akari.observability.run_tracking import InMemoryRunStore, RunStore
+from akari.observability.logging import InMemoryLogStore, JsonLinesLogStore, LogStore
+from akari.observability.run_tracking import InMemoryRunStore, JsonRunStore, RunStore
 from akari.registry.registry import IdentityRegistry
 from akari.tools.manager import ToolManager
 from akari.tools.runtime import CallableToolRuntime, HttpToolRuntime
@@ -57,6 +60,8 @@ class Kernel:
         runtime_registry = RuntimeRegistry()
         runtime_registry.register('callable', CallableRuntime())
         runtime_registry.register('sklearn', SklearnRuntime())
+        runtime_registry.register('pytorch', PytorchRuntime())
+        runtime_registry.register('hf-llm', HuggingFaceLLMRuntime())
 
         # Logger/log_store
         if self.logger is None:
@@ -208,3 +213,60 @@ class Kernel:
             'Task submission is not implemented yet. '
             'This will be provided in v0.3.0 Task & Execution.'
         )
+
+    # ---- Configuration-based boot ---------------------------------------
+
+    @classmethod
+    def from_config(cls, config_or_path: Union[str, AkariConfig, Dict[str, Any]]) -> "Kernel":
+        """Construct a Kernel instance from an AkariConfig or a config file.
+
+        Args:
+            config_or_path:
+                Either:
+                - a file path to a YAML configuration (akari.yml), or
+                - an AkariConfig instance, or
+                - a raw dictionary matching the AkariConfig schema.
+
+        Returns:
+            A Kernel instance wired according to the configuration.
+        """
+        if isinstance(config_or_path, AkariConfig):
+            config = config_or_path
+        elif isinstance(config_or_path, dict):
+            config = AkariConfig.from_dict(config_or_path)
+        elif isinstance(config_or_path, str):
+            config = AkariConfig.from_yaml(config_or_path)
+        else:
+            raise TypeError(
+                "Kernel.from_config expects a path, an AkariConfig or a dictionary."
+            )
+
+        obs_cfg = config.observability
+
+        # Configure logging backend
+        if obs_cfg.log_backend == "jsonl":
+            if not obs_cfg.log_path:
+                raise ValueError(
+                    "observability.log_path must be set when log_backend='jsonl'."
+                )
+            logger: LogStore = JsonLinesLogStore(obs_cfg.log_path)
+        elif obs_cfg.log_backend == "memory":
+            logger = InMemoryLogStore()
+        else:
+            raise ValueError(f"Unknown log_backend: {obs_cfg.log_backend!r}")
+
+        # Configure run-store backend
+        if obs_cfg.run_backend == "json":
+            if not obs_cfg.run_dir:
+                raise ValueError(
+                    "observability.run_dir must be set when run_backend='json'."
+                )
+            run_store: RunStore = JsonRunStore(obs_cfg.run_dir)
+        elif obs_cfg.run_backend == "memory":
+            run_store = InMemoryRunStore()
+        else:
+            raise ValueError(f"Unknown run_backend: {obs_cfg.run_backend!r}")
+
+        # For v1.0.0 we keep policy_engine and runtime layout as defaults.
+        # Future versions may use config.policy_files and execution.* options.
+        return cls(logger=logger, run_store=run_store)

@@ -1,0 +1,3 @@
+{"id": "e1b9742b-744c-469c-a44c-132b056d709c", "timestamp": "2025-11-28T21:52:04.955259+00:00", "event_type": "task.created", "payload": {"target_id": "tool:add"}, "subject": "user:demo", "workspace": null, "spec_id": null, "task_id": "task:add:demo"}
+{"id": "7f683def-79ac-472e-9c5e-b2da98e90d82", "timestamp": "2025-11-28T21:52:04.955808+00:00", "event_type": "task.started", "payload": {"target_id": "tool:add"}, "subject": "user:demo", "workspace": null, "spec_id": null, "task_id": "task:add:demo"}
+{"id": "6a9da874-d147-45f4-91a8-819c58671f2b", "timestamp": "2025-11-28T21:52:04.956113+00:00", "event_type": "task.completed", "payload": {}, "subject": "user:demo", "workspace": null, "spec_id": "tool:add", "task_id": "task:add:demo"}

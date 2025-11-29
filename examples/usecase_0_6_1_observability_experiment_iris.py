@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from typing import Dict
 
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
-from akari.observability.run_tracking import InMemoryRunStore, RunTracker
+from akari.observability.run_tracking import JsonRunStore, RunTracker
 
 
 def train_iris_model(n_estimators: int) -> float:
@@ -25,7 +26,11 @@ def train_iris_model(n_estimators: int) -> float:
 
 
 def main() -> None:
-    store = InMemoryRunStore()
+    # Use a persistent JSON-based run store under ./artifacts/runs_iris
+    runs_dir = os.path.join("artifacts", "runs_iris")
+    os.makedirs(runs_dir, exist_ok=True)
+
+    store = JsonRunStore(runs_dir)
     tracker = RunTracker(store)
 
     configs = [
