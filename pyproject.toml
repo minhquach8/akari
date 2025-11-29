@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "akari"
+version = "0.1.0"
+description = "AKARI – an OS-style kernel and control-plane for AI systems."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Minh Quach", email = "minhquach8@gmail.com" }
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
