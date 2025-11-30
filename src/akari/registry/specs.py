@@ -71,13 +71,6 @@ class ModelSpec(BaseSpec):
 
     kind: SpecKindLiteral = field(default='model', init=False)
 
-
-@dataclass
-class ModelSpec(BaseSpec):
-    """Specification for a model identiy."""
-
-    kind: SpecKindLiteral = field(default='model', init=False)
-
     def __post_init__(self) -> None:
         # If no display_name provided, keep the original name for human-facing usage.
         if self.display_name is None:
