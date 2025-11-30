@@ -17,18 +17,22 @@ class BaseSpec:
     This describes the common identity and configuration fields used by all higher-level spec types (models, tools, resources, agents, workspaces).
     """
 
-    id: str = field(init=False)
+    # Non-default fields first (appear in __init__).
     name: str
-    display_name: Optional[str] = None
     kind: SpecKindLiteral
     runtime: str
+    display_name: Optional[str] = None
 
+    # Defaulted fields afterwards.
     metadata: Dict[str, Any] = field(default_factory=dict)
     config: Dict[str, Any] = field(default_factory=dict)
     tags: Set[str] = field(default_factory=set)
     enabled: bool = True
     binding: Optional[Any] = None
     version: Optional[str] = None
+
+    # id is not part of __init__, so it can be placed last.
+    id: str = field(init=False)
 
     @classmethod
     def normalise_name(cls, raw_name: str) -> str:
@@ -77,7 +81,7 @@ class ModelSpec(BaseSpec):
     def __post_init__(self) -> None:
         # If no display_name provided, keep the original name for human-facing usage.
         if self.display_name is None:
-            self.display_name = self.name.strip()
+            self.display_name = self.name
 
         # Canonicalise the name into a slug for internal use.
         slug = self.normalise_name(self.name)
@@ -95,7 +99,7 @@ class ToolSpec(BaseSpec):
 
     def __post_init__(self) -> None:
         if self.display_name is None:
-            self.display_name = self.name.strip()
+            self.display_name = self.name
 
         slug = self.normalise_name(self.name)
         self.name = slug
@@ -111,7 +115,7 @@ class ResourceSpec(BaseSpec):
 
     def __post_init__(self) -> None:
         if self.display_name is None:
-            self.display_name = self.name.strip()
+            self.display_name = self.name
 
         slug = self.normalise_name(self.name)
         self.name = slug
@@ -127,7 +131,7 @@ class AgentSpec(BaseSpec):
 
     def __post_init__(self) -> None:
         if self.display_name is None:
-            self.display_name = self.name.strip()
+            self.display_name = self.name
 
         slug = self.normalise_name(self.name)
         self.name = slug
@@ -143,7 +147,7 @@ class WorkspaceSpec(BaseSpec):
 
     def __post_init__(self) -> None:
         if self.display_name is None:
-            self.display_name = self.name.strip()
+            self.display_name = self.name
 
         slug = self.normalise_name(self.name)
         self.name = slug
