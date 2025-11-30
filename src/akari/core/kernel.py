@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 
 from akari.config import AkariConfig
 from akari.core.types import SubsystemName
+from akari.registry.registry import IdentityRegistry
 
 
 @dataclass
@@ -121,7 +122,7 @@ class Kernel:
             
         # Future versions will instantiate concrete subsystems based on config.
         return cls(
-            registry=None,
+            registry=IdentityRegistry(),
             executor=None,
             policy_engine=None,
             memory=None,
