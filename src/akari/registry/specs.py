@@ -19,6 +19,7 @@ class BaseSpec:
 
     id: str = field(init=False)
     name: str
+    display_name: Optional[str] = None
     kind: SpecKindLiteral
     runtime: str
 
@@ -30,21 +31,33 @@ class BaseSpec:
     version: Optional[str] = None
 
     @classmethod
+    def normalise_name(cls, raw_name: str) -> str:
+        """
+        Normalise a human-readable name into a canonical slug.
+
+        Steps:
+        - strip leading and trailing whitespace,
+        - collapse internal whitespace to single underscores,
+        - convert to lower case.
+
+        Example:
+            "  Iris   Classifier " -> "iris_classifier"
+        """
+        normalised_name = raw_name.strip()
+        slug = '_'.join(normalised_name.split()).lower()
+        return slug
+
+    @classmethod
     def build_spec_id(cls, kind: SpecKindLiteral, name: str) -> str:
         """
         Build a canonical spec identifier of the form 'kind:slug'.
 
-        The slug is derived from the given name by:
-        - stripping leading and trailing whitespace,
-        - replacing internal whitespace with underscores,
-        - converting to lower case.
+        The slug is derived from the given name by normalising it:
 
         Example:
             kind="model", name="Iris Classifier" -> "model:iris_classifier"
         """
-
-        normalised_name = name.strip()
-        slug = '_'.join(normalised_name.split()).lower()
+        slug = cls.normalise_name(name)
         return f'{kind}{SPEC_ID_SEPARATOR}{slug}'
 
 
@@ -54,7 +67,23 @@ class ModelSpec(BaseSpec):
 
     kind: SpecKindLiteral = field(default='model', init=False)
 
-    def __post_init__(self):
+
+@dataclass
+class ModelSpec(BaseSpec):
+    """Specification for a model identiy."""
+
+    kind: SpecKindLiteral = field(default='model', init=False)
+
+    def __post_init__(self) -> None:
+        # If no display_name provided, keep the original name for human-facing usage.
+        if self.display_name is None:
+            self.display_name = self.name.strip()
+
+        # Canonicalise the name into a slug for internal use.
+        slug = self.normalise_name(self.name)
+        self.name = slug
+
+        # Build the canonical id from kind and slug.
         self.id = self.build_spec_id('model', self.name)
 
 
@@ -64,7 +93,13 @@ class ToolSpec(BaseSpec):
 
     kind: SpecKindLiteral = field(default='tool', init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        if self.display_name is None:
+            self.display_name = self.name.strip()
+
+        slug = self.normalise_name(self.name)
+        self.name = slug
+
         self.id = self.build_spec_id('tool', self.name)
 
 
@@ -74,7 +109,13 @@ class ResourceSpec(BaseSpec):
 
     kind: SpecKindLiteral = field(default='resource', init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        if self.display_name is None:
+            self.display_name = self.name.strip()
+
+        slug = self.normalise_name(self.name)
+        self.name = slug
+
         self.id = self.build_spec_id('resource', self.name)
 
 
@@ -84,7 +125,13 @@ class AgentSpec(BaseSpec):
 
     kind: SpecKindLiteral = field(default='agent', init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        if self.display_name is None:
+            self.display_name = self.name.strip()
+
+        slug = self.normalise_name(self.name)
+        self.name = slug
+
         self.id = self.build_spec_id('agent', self.name)
 
 
@@ -94,5 +141,11 @@ class WorkspaceSpec(BaseSpec):
 
     kind: SpecKindLiteral = field(default='workspace', init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        if self.display_name is None:
+            self.display_name = self.name.strip()
+
+        slug = self.normalise_name(self.name)
+        self.name = slug
+
         self.id = self.build_spec_id('workspace', self.name)
